@@ -9,8 +9,7 @@ from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework import status
 from rest_framework.response import Response
-
-from hubspot.crm.contacts import BatchInputSimplePublicObjectInputForCreate, BatchReadInputSimplePublicObjectId, ApiException
+from hubspot.crm.contacts import BatchInputSimplePublicObjectInputForCreate, SimplePublicObjectInput, ApiException
 from hubspot.crm.associations.v4 import BatchInputPublicDefaultAssociationMultiPost, ApiException
 
 from app.serializers import CharacterSerializer, LocationSerializer
@@ -261,8 +260,36 @@ class requestHubspot(generics.GenericAPIView):
         if not hubspot_secret:
             return Response({'error': 'XHubSpotSecret not Found'}, status=status.HTTP_400_BAD_REQUEST)
         
-        if hubspot_secret == "pat-na1-4de0014b-a034-43c6-aee2-b9261311121c":
-            pprint(request.data)
-            return Response({'succes': 'The batches of contacts have been update.'}, status=status.HTTP_200_OK)
-        else:
+        if hubspot_secret != "pat-na1-4de0014b-a034-43c6-aee2-b9261311121c":
             return Response({'error': 'Authentication failed: X-HubSpot-Secret mismatch.'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        try:
+            client = hubspot.Client.create(access_token="pat-na1-5db5fd91-2648-49cb-8a58-3299a4bc6a61")
+            data = request.data
+            contactId = data.get('hs_object_id', '')
+            properties = {
+                "hs_object_id": data.get('hs_object_id', ''),
+                "character_id": data.get('character_id', ''),
+                "firstname": data.get('firstname', ''),
+                "lastname": data.get('lastname', ''),
+                "status_character": data.get('status_character', ''),
+                "character_species": data.get('character_species', ''),
+                "character_gender": data.get('character_gender', ''),
+                "location_id": data.get('location_id', ''),
+            }
+            simple_public_object_input = SimplePublicObjectInput(properties=properties)
+            client.crm.contacts.basic_api.update(contact_id=contactId, simple_public_object_input=simple_public_object_input)
+            return Response({'succes': 'The batches of contacts have been update.'}, status=status.HTTP_200_OK)
+
+        except ApiException as e:
+            print("Exception when calling ")
+            return Response({'error': 'Failed to update/created client.'}, status=status.HTTP_403_FORBIDDEN)
+
+
+        
+
+            
+
+
+
+
