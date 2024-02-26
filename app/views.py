@@ -257,12 +257,13 @@ class requestHubspot(generics.GenericAPIView):
     permission_classes = [AllowAny]
     def post(self, request, *args, **kwargs):
         print("ENTRO AL ENDPOINT XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
-        hubspot_secret = request.headers.get('XHubSpotSecret')
+        hubspot_secret = request.headers.get('HubSpotSecret')
 
         if not hubspot_secret:
-            return Response({'error': 'XHubSpotSecret not Found'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'HubSpotSecret not Found'}, status=status.HTTP_400_BAD_REQUEST)
         
         if hubspot_secret != "pat-na1-4de0014b-a034-43c6-aee2-b9261311121c":
+            print(f'pat-na1-4de0014b-a034-43c6-aee2-b9261311121c -----{hubspot_secret}')
             return Response({'error': 'Authentication failed: X-HubSpot-Secret mismatch.'}, status=status.HTTP_401_UNAUTHORIZED)
 
         try:
