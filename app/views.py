@@ -9,7 +9,7 @@ from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework import status
 from rest_framework.response import Response
-from hubspot.crm.contacts import BatchInputSimplePublicObjectInputForCreate, SimplePublicObjectInput, ApiException
+from hubspot.crm.contacts import BatchInputSimplePublicObjectInputForCreate, SimplePublicObjectInputForCreate, SimplePublicObjectInput, ApiException
 from hubspot.crm.associations.v4 import BatchInputPublicDefaultAssociationMultiPost, ApiException
 
 from app.serializers import CharacterSerializer, LocationSerializer
@@ -265,8 +265,8 @@ class requestHubspot(generics.GenericAPIView):
 
         try:
             client = hubspot.Client.create(access_token="pat-na1-5db5fd91-2648-49cb-8a58-3299a4bc6a61")
-            data = request.data
             contactId = data.get('hs_object_id', '')
+            data = request.data
             properties = {
                 "hs_object_id": data.get('hs_object_id', ''),
                 "character_id": data.get('character_id', ''),
@@ -277,9 +277,16 @@ class requestHubspot(generics.GenericAPIView):
                 "character_gender": data.get('character_gender', ''),
                 "location_id": data.get('location_id', ''),
             }
-            simple_public_object_input = SimplePublicObjectInput(properties=properties)
-            client.crm.contacts.basic_api.update(contact_id=contactId, simple_public_object_input=simple_public_object_input)
-            return Response({'succes': 'The batches of contacts have been update.'}, status=status.HTTP_200_OK)
+
+            response = client.crm.contacts.basic_api.get_by_id(contact_id=contactId, archived=False)
+            if response.status == 200:
+                simple_public_object_input = SimplePublicObjectInput(properties=properties)
+                client.crm.contacts.basic_api.update(contact_id=contactId, simple_public_object_input=simple_public_object_input)
+                return Response({'succes': 'The contact has been update.'}, status=status.HTTP_200_OK)
+            if response.status == 404:
+                simple_public_object_input_for_create = SimplePublicObjectInputForCreate(properties=properties)
+                client.crm.contacts.basic_api.create(simple_public_object_input_for_create=simple_public_object_input_for_create)
+                return Response({'succes': 'The contact has been created.'}, status=status.HTTP_200_OK)
 
         except ApiException as e:
             print("Exception when calling ")
