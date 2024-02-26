@@ -9,7 +9,7 @@ from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework import status
 from rest_framework.response import Response
-from hubspot.crm.contacts import BatchInputSimplePublicObjectInputForCreate, SimplePublicObjectInputForCreate, SimplePublicObjectInput, ApiException
+from hubspot.crm.contacts import BatchInputSimplePublicObjectInputForCreate, PublicObjectSearchRequest, SimplePublicObjectInputForCreate, SimplePublicObjectInput, ApiException
 from hubspot.crm.associations.v4 import BatchInputPublicDefaultAssociationMultiPost, ApiException
 from hubspot.crm.contacts.exceptions import NotFoundException
 
@@ -279,9 +279,10 @@ class mirrorHubspotContacts(generics.GenericAPIView):
                 "character_gender": data.get('character_gender', ''),
                 "location_id": data.get('location_id', '')
             }
-
-            response = client.crm.contacts.search_api.do_search(q=f'character_id:{characterID}')
+            public_object_search_request = PublicObjectSearchRequest(q=f'character_id:{characterID}')
+            response = client.crm.contacts.search_api.do_search(public_object_search_request=public_object_search_request)
             if response.status == 200:
+                pprint(f'response-------------------{response}')
                 contactID = response.body.results[0].id
                 simple_public_object_input = SimplePublicObjectInput(properties=properties)
                 client.crm.contacts.basic_api.update(contact_id=contactID, simple_public_object_input=simple_public_object_input)
