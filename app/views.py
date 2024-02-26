@@ -268,8 +268,6 @@ class mirrorHubspotContacts(generics.GenericAPIView):
             client = hubspot.Client.create(access_token="pat-na1-5db5fd91-2648-49cb-8a58-3299a4bc6a61")
             
             data = request.data
-            contactId = data.get('hs_object_id', '')
-
             properties = {
                 "hs_object_id": data.get('hs_object_id', ''),
                 "character_id": data.get('character_id', ''),
@@ -281,13 +279,6 @@ class mirrorHubspotContacts(generics.GenericAPIView):
                 "location_id": data.get('location_id', '')
             }
 
-            response = client.crm.contacts.basic_api.get_by_id(contact_id=contactId, archived=False)
-            if response.status == 200:
-                simple_public_object_input = SimplePublicObjectInput(properties=properties)
-                client.crm.contacts.basic_api.update(contact_id=contactId, simple_public_object_input=simple_public_object_input)
-                return Response({'succes': 'The contact has been update.'}, status=status.HTTP_201_CREATED)
-
-        except NotFoundException:
             simple_public_object_input_for_create = SimplePublicObjectInputForCreate(properties=properties)
             client.crm.contacts.basic_api.create(simple_public_object_input_for_create=simple_public_object_input_for_create)
             return Response({'succes': 'The contact has been created.'}, status=status.HTTP_200_OK)
