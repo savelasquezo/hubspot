@@ -256,7 +256,7 @@ class requestAssociations(generics.GenericAPIView):
 class mirrorHubspotContacts(generics.GenericAPIView):
     permission_classes = [AllowAny]
     def post(self, request, *args, **kwargs):
-        print("ENTRO AL ENDPOINT XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
+        print("ENTRO AL ENDPOINT mirrorHubspotContacts XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
         hubspot_secret = request.headers.get('HubSpotSecret')
 
         if not hubspot_secret:
@@ -299,17 +299,16 @@ class mirrorHubspotContacts(generics.GenericAPIView):
 
 
         
-class mirrorHubspotContacts(generics.GenericAPIView):
+class mirrorHubspotCompanies(generics.GenericAPIView):
     permission_classes = [AllowAny]
     def post(self, request, *args, **kwargs):
-        print("ENTRO AL ENDPOINT XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
+        print("ENTRO AL ENDPOINT mirrorHubspotContacts XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
         hubspot_secret = request.headers.get('HubSpotSecret')
 
         if not hubspot_secret:
             return Response({'error': 'HubSpotSecret not Found'}, status=status.HTTP_400_BAD_REQUEST)
         
         if hubspot_secret != "pat-na1-4de0014b-a034-43c6-aee2-b9261311121c":
-            print(f'pat-na1-4de0014b-a034-43c6-aee2-b9261311121c -----{hubspot_secret}')
             return Response({'error': 'Authentication failed: X-HubSpot-Secret mismatch.'}, status=status.HTTP_401_UNAUTHORIZED)
 
         try:
@@ -317,8 +316,8 @@ class mirrorHubspotContacts(generics.GenericAPIView):
             
             data = request.data
             contactId = data.get('hs_object_id', '')
+            print(f'contactId_-------------------------{contactId}')
             properties = {
-                "hs_object_id": data.get('hs_object_id', ''),
                 "character_id": data.get('character_id', ''),
                 "firstname": data.get('firstname', ''),
                 "lastname": data.get('lastname', ''),
@@ -327,12 +326,14 @@ class mirrorHubspotContacts(generics.GenericAPIView):
                 "character_gender": data.get('character_gender', ''),
                 "location_id": data.get('location_id', ''),
             }
+            print("PROPIEDADES PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP")
+            pprint(properties)
 
             response = client.crm.contacts.basic_api.get_by_id(contact_id=contactId, archived=False)
             if response.status == 200:
                 simple_public_object_input = SimplePublicObjectInput(properties=properties)
                 client.crm.contacts.basic_api.update(contact_id=contactId, simple_public_object_input=simple_public_object_input)
-                return Response({'succes': 'The contact has been update.'}, status=status.HTTP_200_OK)
+                return Response({'succes': 'The contact has been update.'}, status=status.HTTP_201_CREATED)
 
         except NotFoundException:
             simple_public_object_input_for_create = SimplePublicObjectInputForCreate(properties=properties)
@@ -341,8 +342,6 @@ class mirrorHubspotContacts(generics.GenericAPIView):
 
         except ApiException as e:
             return Response({'error': 'Failed to update/created client.'}, status=status.HTTP_403_FORBIDDEN)
-            
-
 
 
 
