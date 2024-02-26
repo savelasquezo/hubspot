@@ -256,27 +256,17 @@ class requestAssociations(generics.GenericAPIView):
 class requestHubspot(generics.GenericAPIView):
     permission_classes = [AllowAny]
     def post(self, request, *args, **kwargs):
-        hubspot_signature = request.headers.get('X-HubSpot-Signature')
-        if not hubspot_signature:
-            return Response({'error': 'X-HubSpot-Signature not found'}, status=status.HTTP_400_BAD_REQUEST)
-        app_secret = 'pat-na1-4de0014b-a034-43c6-aee2-b9261311121c'
+        hubspot_secret = request.headers.get('XHubSpotSecret')
 
-        # Concatena App Secret + http method + URI + request body (si presente)
-        concatenated_string = f"{app_secret}{request.method}{request.path_info}"
+        if not hubspot_secret:
+            return Response({'error': 'XHubSpotSecret not Found'}, status=status.HTTP_400_BAD_REQUEST)
         
-        # Si hay un cuerpo en la solicitud, agrégalo a la cadena concatenada
-        if request.body:
-            concatenated_string += request.body.decode('utf-8')
-
-        # Crea un hash SHA-256 de la cadena concatenada
-        calculated_signature = hashlib.sha256(concatenated_string.encode('utf-8')).hexdigest()
-
-        # Compara el valor del encabezado con el valor calculado
-        if hubspot_signature == calculated_signature:
+        if hubspot_secret == "54b655d0-f1dd-436b-8dfb-9dccadd79a8a":
             # La verificación ha pasado, puedes proceder con el manejo de la solicitud
             return Response({'mensaje': 'Verificación exitosa'})
         else:
             # La verificación ha fallado, devuelve una respuesta de error
             return Response({'mensaje': 'Verificación fallida'}, status=status.HTTP_403_FORBIDDEN)
+
         #body = request.data
         #return Response(data={'body': body}, status=200)
