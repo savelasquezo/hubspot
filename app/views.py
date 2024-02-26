@@ -266,8 +266,9 @@ class requestHubspot(generics.GenericAPIView):
 
         try:
             client = hubspot.Client.create(access_token="pat-na1-5db5fd91-2648-49cb-8a58-3299a4bc6a61")
-            contactId = data.get('hs_object_id', '')
+            
             data = request.data
+            contactId = data.get('hs_object_id', '')
             properties = {
                 "hs_object_id": data.get('hs_object_id', ''),
                 "character_id": data.get('character_id', ''),
