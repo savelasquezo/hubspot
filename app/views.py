@@ -261,7 +261,7 @@ class requestHubspot(generics.GenericAPIView):
         if not hubspot_secret:
             return Response({'error': 'XHubSpotSecret not Found'}, status=status.HTTP_400_BAD_REQUEST)
         
-        if hubspot_secret == "54b655d0-f1dd-436b-8dfb-9dccadd79a8a":
+        if hubspot_secret == "pat-na1-4de0014b-a034-43c6-aee2-b9261311121c":
             pprint(request.data)
             return Response({'succes': 'The batches of contacts have been update.'}, status=status.HTTP_200_OK)
         else:
