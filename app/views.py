@@ -253,7 +253,53 @@ class requestAssociations(generics.GenericAPIView):
             return Response({'error': 'Error fetching associations.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
 
-class requestHubspot(generics.GenericAPIView):
+class mirrorHubspotContacts(generics.GenericAPIView):
+    permission_classes = [AllowAny]
+    def post(self, request, *args, **kwargs):
+        print("ENTRO AL ENDPOINT XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
+        hubspot_secret = request.headers.get('HubSpotSecret')
+
+        if not hubspot_secret:
+            return Response({'error': 'HubSpotSecret not Found'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if hubspot_secret != "pat-na1-4de0014b-a034-43c6-aee2-b9261311121c":
+            return Response({'error': 'Authentication failed: X-HubSpot-Secret mismatch.'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        try:
+            client = hubspot.Client.create(access_token="pat-na1-5db5fd91-2648-49cb-8a58-3299a4bc6a61")
+            
+            data = request.data
+            contactId = data.get('hs_object_id', '')
+            print(f'contactId_-------------------------{contactId}')
+            properties = {
+                "character_id": data.get('character_id', ''),
+                "firstname": data.get('firstname', ''),
+                "lastname": data.get('lastname', ''),
+                "status_character": data.get('status_character', ''),
+                "character_species": data.get('character_species', ''),
+                "character_gender": data.get('character_gender', ''),
+                "location_id": data.get('location_id', ''),
+            }
+            print("PROPIEDADES PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP")
+            pprint(properties)
+
+            response = client.crm.contacts.basic_api.get_by_id(contact_id=contactId, archived=False)
+            if response.status == 200:
+                simple_public_object_input = SimplePublicObjectInput(properties=properties)
+                client.crm.contacts.basic_api.update(contact_id=contactId, simple_public_object_input=simple_public_object_input)
+                return Response({'succes': 'The contact has been update.'}, status=status.HTTP_201_CREATED)
+
+        except NotFoundException:
+            simple_public_object_input_for_create = SimplePublicObjectInputForCreate(properties=properties)
+            client.crm.contacts.basic_api.create(simple_public_object_input_for_create=simple_public_object_input_for_create)
+            return Response({'succes': 'The contact has been created.'}, status=status.HTTP_200_OK)
+
+        except ApiException as e:
+            return Response({'error': 'Failed to update/created client.'}, status=status.HTTP_403_FORBIDDEN)
+
+
+        
+class mirrorHubspotContacts(generics.GenericAPIView):
     permission_classes = [AllowAny]
     def post(self, request, *args, **kwargs):
         print("ENTRO AL ENDPOINT XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
@@ -295,10 +341,6 @@ class requestHubspot(generics.GenericAPIView):
 
         except ApiException as e:
             return Response({'error': 'Failed to update/created client.'}, status=status.HTTP_403_FORBIDDEN)
-
-
-        
-
             
 
 
