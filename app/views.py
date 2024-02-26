@@ -256,5 +256,6 @@ class requestAssociations(generics.GenericAPIView):
 class requestHubspot(generics.GenericAPIView):
     permission_classes = [AllowAny]
     def post(self, request, *args, **kwargs):
-        pprint("El Weebhook ha Funcionado! Felicitaciones")
-        return Response({'details': 'The batches of associations have been created.'}, status=status.HTTP_200_OK)
+        body = request.data
+        pprint(body)
+        return Response(data={'body': body}, status=200)

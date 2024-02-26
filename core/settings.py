@@ -8,6 +8,10 @@ https://docs.djangoproject.com/en/4.2/topics/settings/
 
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.2/ref/settings/
+
+
+Heroku URL= https://hubspot-d04aa4727870.herokuapp.com/
+
 """
 import os
 from pathlib import Path
