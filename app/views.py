@@ -256,7 +256,6 @@ class requestAssociations(generics.GenericAPIView):
 class mirrorHubspotContacts(generics.GenericAPIView):
     permission_classes = [AllowAny]
     def post(self, request, *args, **kwargs):
-        print("ENTRO AL ENDPOINT mirrorHubspotContacts XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
         hubspot_secret = request.headers.get('HubSpotSecret')
 
         if not hubspot_secret:
@@ -270,18 +269,17 @@ class mirrorHubspotContacts(generics.GenericAPIView):
             
             data = request.data
             contactId = data.get('hs_object_id', '')
-            print(f'contactId_-------------------------{contactId}')
+
             properties = {
+                "hs_object_id": data.get('hs_object_id', ''),
                 "character_id": data.get('character_id', ''),
                 "firstname": data.get('firstname', ''),
                 "lastname": data.get('lastname', ''),
                 "status_character": data.get('status_character', ''),
                 "character_species": data.get('character_species', ''),
                 "character_gender": data.get('character_gender', ''),
-                "location_id": data.get('location_id', ''),
+                "location_id": data.get('location_id', '')
             }
-            print("PROPIEDADES PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP")
-            pprint(properties)
 
             response = client.crm.contacts.basic_api.get_by_id(contact_id=contactId, archived=False)
             if response.status == 200:
@@ -299,6 +297,27 @@ class mirrorHubspotContacts(generics.GenericAPIView):
 
 
         
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 class mirrorHubspotCompanies(generics.GenericAPIView):
     permission_classes = [AllowAny]
     def post(self, request, *args, **kwargs):
