@@ -256,7 +256,7 @@ class requestAssociations(generics.GenericAPIView):
 class requestHubspot(generics.GenericAPIView):
     permission_classes = [AllowAny]
     def post(self, request, *args, **kwargs):
-
+        print("ENTRO AL ENDPOINT XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
         hubspot_secret = request.headers.get('XHubSpotSecret')
 
         if not hubspot_secret:
