@@ -11,6 +11,7 @@ from rest_framework import status
 from rest_framework.response import Response
 from hubspot.crm.contacts import BatchInputSimplePublicObjectInputForCreate, SimplePublicObjectInputForCreate, SimplePublicObjectInput, ApiException
 from hubspot.crm.associations.v4 import BatchInputPublicDefaultAssociationMultiPost, ApiException
+from hubspot.crm.contacts.exceptions import NotFoundException
 
 from app.serializers import CharacterSerializer, LocationSerializer
 
@@ -255,7 +256,7 @@ class requestAssociations(generics.GenericAPIView):
 class requestHubspot(generics.GenericAPIView):
     permission_classes = [AllowAny]
     def post(self, request, *args, **kwargs):
-        pprint("Ingreso al Endpoint requestHubspot XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
+
         hubspot_secret = request.headers.get('XHubSpotSecret')
 
         if not hubspot_secret:
@@ -285,13 +286,13 @@ class requestHubspot(generics.GenericAPIView):
                 simple_public_object_input = SimplePublicObjectInput(properties=properties)
                 client.crm.contacts.basic_api.update(contact_id=contactId, simple_public_object_input=simple_public_object_input)
                 return Response({'succes': 'The contact has been update.'}, status=status.HTTP_200_OK)
-            if response.status == 404:
-                simple_public_object_input_for_create = SimplePublicObjectInputForCreate(properties=properties)
-                client.crm.contacts.basic_api.create(simple_public_object_input_for_create=simple_public_object_input_for_create)
-                return Response({'succes': 'The contact has been created.'}, status=status.HTTP_200_OK)
+
+        except NotFoundException:
+            simple_public_object_input_for_create = SimplePublicObjectInputForCreate(properties=properties)
+            client.crm.contacts.basic_api.create(simple_public_object_input_for_create=simple_public_object_input_for_create)
+            return Response({'succes': 'The contact has been created.'}, status=status.HTTP_200_OK)
 
         except ApiException as e:
-            print("Exception when calling ")
             return Response({'error': 'Failed to update/created client.'}, status=status.HTTP_403_FORBIDDEN)
 
 
