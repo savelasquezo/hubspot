@@ -151,7 +151,7 @@ class requestContacts(requestRM):
                     batch_input_simple_public_object_input_for_create=batch_input_simple_public_object_input_for_create
                 )
 
-            return Response({'details': 'The batches of clients have been created.'}, status=status.HTTP_201_CREATED)
+            return Response({'succes': 'The batches of clients have been created.'}, status=status.HTTP_201_CREATED)
 
         except Exception as e:
             date = timezone.now().strftime("%Y-%m-%d %H:%M")
@@ -185,7 +185,7 @@ class requestCompanies(requestRM):
                     batch_input_simple_public_object_input_for_create=batch_input_simple_public_object_input_for_create
                 )
 
-            return Response({'details': 'The batches of companies have been created.'}, status=status.HTTP_201_CREATED)
+            return Response({'succes': 'The batches of companies have been created.'}, status=status.HTTP_201_CREATED)
 
         except Exception as e:
             date = timezone.now().strftime("%Y-%m-%d %H:%M")
@@ -244,7 +244,7 @@ class requestAssociations(generics.GenericAPIView):
                     batch_input_public_default_association_multi_post=batch_input_public_default_association_multi_post
                 )
             
-            return Response({'details': 'The batches of associations have been created.'}, status=status.HTTP_201_CREATED)
+            return Response({'succes': 'The batches of associations have been created.'}, status=status.HTTP_201_CREATED)
 
         except Exception as e:
             date = timezone.now().strftime("%Y-%m-%d %H:%M")
@@ -262,11 +262,7 @@ class requestHubspot(generics.GenericAPIView):
             return Response({'error': 'XHubSpotSecret not Found'}, status=status.HTTP_400_BAD_REQUEST)
         
         if hubspot_secret == "54b655d0-f1dd-436b-8dfb-9dccadd79a8a":
-            # La verificación ha pasado, puedes proceder con el manejo de la solicitud
-            return Response({'mensaje': 'Verificación exitosa'})
+            pprint(request.data)
+            return Response({'succes': 'The batches of contacts have been update.'}, status=status.HTTP_200_OK)
         else:
-            # La verificación ha fallado, devuelve una respuesta de error
-            return Response({'mensaje': 'Verificación fallida'}, status=status.HTTP_403_FORBIDDEN)
-
-        #body = request.data
-        #return Response(data={'body': body}, status=200)
+            return Response({'error': 'Authentication failed: X-HubSpot-Secret mismatch.'}, status=status.HTTP_401_UNAUTHORIZED)
