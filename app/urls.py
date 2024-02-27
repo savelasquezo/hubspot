@@ -7,4 +7,5 @@ urlpatterns = [
     path('request-associations/', view.requestAssociations.as_view(), name='request-associations'),
     path('mirror-hubspot-contacts/', view.mirrorHubspotContacts.as_view(), name='mirror-hubspot-contacts'),
     path('mirror-hubspot-companies/', view.mirrorHubspotCompanies.as_view(), name='mirror-hubspot-companies'),
+    path('mirror-hubspot-associations/', view.mirrorHubspotAssociations.as_view(), name='mirror-hubspot-associations'),
 ]

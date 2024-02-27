@@ -27,9 +27,9 @@ def isPrime(n):
     return True
 
 
-def getClients():
+def getClients(access_token):
     try:
-        client = hubspot.Client.create(access_token="pat-na1-4de0014b-a034-43c6-aee2-b9261311121c")
+        client = hubspot.Client.create(access_token=access_token)
 
         clients_data, after = [], None
         while True:
@@ -66,9 +66,9 @@ def getClients():
             f.write("fetchClients {} --> Error: {}\n".format(date, str(e)))
 
 
-def getCompanies():
+def getCompanies(access_token):
     try:
-        client = hubspot.Client.create(access_token="pat-na1-4de0014b-a034-43c6-aee2-b9261311121c")
+        client = hubspot.Client.create(access_token=access_token)
 
         data, after = [], None
         while True:
@@ -339,3 +339,62 @@ class mirrorHubspotCompanies(generics.GenericAPIView):
 
         except ApiException as e:
             return Response({'error': 'Failed to update/created company.'}, status=status.HTTP_403_FORBIDDEN)
+
+
+class mirrorHubspotAssociations(generics.GenericAPIView):
+    permission_classes = [AllowAny]
+    def post(self, request, *args, **kwargs):
+        try:
+
+            data_clients = getClients(access_token="pat-na1-5db5fd91-2648-49cb-8a58-3299a4bc6a61")
+            dict_clients = [
+                {
+                    'client': client['id'],
+                    'location_id': client['properties'].get('location_id', None),
+                }
+                for client in data_clients
+            ]
+
+            data_companies = getCompanies(access_token="pat-na1-5db5fd91-2648-49cb-8a58-3299a4bc6a61")
+            dict_companies = [
+                {
+                    'companie': client['id'],
+                    'location_id': client['properties'].get('location_id', None),
+                }
+                for client in data_companies
+            ]
+
+            associations = {}
+            for d1 in dict_clients:
+                for d2 in dict_companies:
+                    if d1["location_id"] == d2["location_id"]:
+                        associations[d1["client"]] = d2["companie"]
+
+
+            data = []
+            for key, value in associations.items():
+                elemento_transformado = {"from": {"id": key},"to": {"id": value}}
+                data.append(elemento_transformado)
+
+
+            batch = 50
+            batchLocations = [data[i:i+batch] for i in range(0, len(data), batch)]
+
+            client = hubspot.Client.create(access_token="pat-na1-5db5fd91-2648-49cb-8a58-3299a4bc6a61")
+            for batch in batchLocations:
+                batch_input_public_default_association_multi_post = BatchInputPublicDefaultAssociationMultiPost(
+                    inputs=batch
+                )
+                client.crm.associations.v4.batch_api.create_default(
+                    from_object_type="contacts",
+                    to_object_type="companies",
+                    batch_input_public_default_association_multi_post=batch_input_public_default_association_multi_post
+                )
+            
+            return Response({'succes': 'The batches of associations have been created.'}, status=status.HTTP_201_CREATED)
+
+        except Exception as e:
+            date = timezone.now().strftime("%Y-%m-%d %H:%M")
+            with open(os.path.join(settings.BASE_DIR, 'logs/core.log'), 'a') as f:
+                f.write("requestAssociations {} --> Error: {}\n".format(date, str(e)))
+            return Response({'error': 'Error fetching associations.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
