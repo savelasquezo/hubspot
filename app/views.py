@@ -281,9 +281,8 @@ class mirrorHubspotContacts(generics.GenericAPIView):
             }
 
 
-            public_object_search_request = PublicObjectSearchRequest()
-            public_object_search_request.query = f'character_id:{characterID}'
-            response, statusCode, _ = client.crm.contacts.search_api.do_search_with_http_info(public_object_search_request=public_object_search_request)
+            public_object_search_request = PublicObjectSearchRequest(query=f'character_id:{characterID}',limit=1)
+            response, statusCode, _ = client.crm.contacts.search_api.do_search(public_object_search_request=public_object_search_request)
             pprint(f'code-------------------{statusCode}')
             pprint(f'response-------------------{response}')
             if statusCode == 200 and response.total > 0:
@@ -304,7 +303,7 @@ class mirrorHubspotContacts(generics.GenericAPIView):
 
 
 
-
+public_object_search_request = PublicObjectSearchRequest(query="string", limit=0, after="string", sorts=["string"], properties=["string"], filter_groups=[{"filters":[{"highValue":"string","propertyName":"string","values":["string"],"value":"string","operator":"EQ"}]}])
 
 
 
