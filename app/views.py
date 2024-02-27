@@ -283,16 +283,15 @@ class mirrorHubspotContacts(generics.GenericAPIView):
 
             public_object_search_request = PublicObjectSearchRequest()
             public_object_search_request.query = f'character_id:{characterID}'
-            response = client.crm.contacts.search_api.do_search(public_object_search_request=public_object_search_request)
-
-            if response.status == 200:
+            response, code, _ = client.crm.contacts.search_api.do_search_with_http_info(public_object_search_request=public_object_search_request)
+            pprint(f'code-------------------{code}')
+            if code == 200 and hasattr(response.body, 'total') and response.body.total > 0:
                 pprint(f'response-------------------{response}')
                 contactID = response.body.results[0].id
                 simple_public_object_input = SimplePublicObjectInput(properties=properties)
                 client.crm.contacts.basic_api.update(contact_id=contactID, simple_public_object_input=simple_public_object_input)
                 return Response({'succes': 'The contact has been update.'}, status=status.HTTP_201_CREATED)
 
-        except NotFoundException:
             simple_public_object_input_for_create = SimplePublicObjectInputForCreate(properties=properties)
             client.crm.contacts.basic_api.create(simple_public_object_input_for_create=simple_public_object_input_for_create)
             return Response({'succes': 'The contact has been created.'}, status=status.HTTP_200_OK)
