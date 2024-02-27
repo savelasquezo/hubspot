@@ -302,7 +302,6 @@ class mirrorHubspotContacts(generics.GenericAPIView):
 class mirrorHubspotCompanies(generics.GenericAPIView):
     permission_classes = [AllowAny]
     def post(self, request, *args, **kwargs):
-        print("ENTRO AL ENDPOINT mirrorHubspotContacts XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
         hubspot_secret = request.headers.get('HubSpotSecret')
 
         if not hubspot_secret:
@@ -315,33 +314,28 @@ class mirrorHubspotCompanies(generics.GenericAPIView):
             client = hubspot.Client.create(access_token="pat-na1-5db5fd91-2648-49cb-8a58-3299a4bc6a61")
             
             data = request.data
-            contactId = data.get('hs_object_id', '')
-            print(f'contactId_-------------------------{contactId}')
+            locationID = data.get('location_id', '')
+
             properties = {
-                "character_id": data.get('character_id', ''),
-                "firstname": data.get('firstname', ''),
-                "lastname": data.get('lastname', ''),
-                "status_character": data.get('status_character', ''),
-                "character_species": data.get('character_species', ''),
-                "character_gender": data.get('character_gender', ''),
                 "location_id": data.get('location_id', ''),
+                "name": data.get('name', ''),
+                "location_type": data.get('location_type', ''),
+                "dimension": data.get('dimension', ''),
+                "creation_date": data.get('creation_date', '')
             }
-            print("PROPIEDADES PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP")
-            pprint(properties)
 
-            response = client.crm.contacts.basic_api.get_by_id(contact_id=contactId, archived=False)
-            if response.status == 200:
+
+            public_object_search_request = PublicObjectSearchRequest(properties=["hs_object_id"], filter_groups=[{"filters":[{"propertyName":"location_id","value":locationID,"operator":"EQ"}]}],limit=1)
+            response = client.crm.companies.search_api.do_search(public_object_search_request=public_object_search_request)
+            if response.total > 0:
+                companyID = response.results[0].properties.get('hs_object_id', None)
                 simple_public_object_input = SimplePublicObjectInput(properties=properties)
-                client.crm.contacts.basic_api.update(contact_id=contactId, simple_public_object_input=simple_public_object_input)
-                return Response({'succes': 'The contact has been update.'}, status=status.HTTP_201_CREATED)
+                client.crm.companies.basic_api.update(company_id=companyID, simple_public_object_input=simple_public_object_input)
+                return Response({'succes': 'The company has been update.'}, status=status.HTTP_201_CREATED)
 
-        except NotFoundException:
             simple_public_object_input_for_create = SimplePublicObjectInputForCreate(properties=properties)
-            client.crm.contacts.basic_api.create(simple_public_object_input_for_create=simple_public_object_input_for_create)
-            return Response({'succes': 'The contact has been created.'}, status=status.HTTP_200_OK)
+            client.crm.companies.basic_api.create(simple_public_object_input_for_create=simple_public_object_input_for_create)
+            return Response({'succes': 'The company has been created.'}, status=status.HTTP_200_OK)
 
         except ApiException as e:
-            return Response({'error': 'Failed to update/created client.'}, status=status.HTTP_403_FORBIDDEN)
-
-
-
+            return Response({'error': 'Failed to update/created company.'}, status=status.HTTP_403_FORBIDDEN)
