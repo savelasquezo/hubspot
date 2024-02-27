@@ -282,10 +282,9 @@ class mirrorHubspotContacts(generics.GenericAPIView):
 
 
             public_object_search_request = PublicObjectSearchRequest(query=f'character_id:{characterID}',limit=1)
-            response, statusCode, _ = client.crm.contacts.search_api.do_search(public_object_search_request=public_object_search_request)
-            pprint(f'code-------------------{statusCode}')
+            response = client.crm.contacts.search_api.do_search(public_object_search_request=public_object_search_request)
             pprint(f'response-------------------{response}')
-            if statusCode == 200 and response.total > 0:
+            if response.total > 0:
                 contactID = response.results[0].hs_object_id
                 simple_public_object_input = SimplePublicObjectInput(properties=properties)
                 client.crm.contacts.basic_api.update(contact_id=contactID, simple_public_object_input=simple_public_object_input)
