@@ -1,6 +1,5 @@
-import os, ramapi, csv, hubspot, json, re, hashlib
+import os, ramapi, hubspot, re
 from ramapi import *
-from pprint import pprint
 
 from django.conf import settings
 from django.utils import timezone
@@ -11,99 +10,151 @@ from rest_framework import status
 from rest_framework.response import Response
 from hubspot.crm.contacts import BatchInputSimplePublicObjectInputForCreate, PublicObjectSearchRequest, SimplePublicObjectInputForCreate, SimplePublicObjectInput, ApiException
 from hubspot.crm.associations.v4 import BatchInputPublicDefaultAssociationMultiPost, ApiException
-from hubspot.crm.contacts.exceptions import NotFoundException
 
 from app.serializers import CharacterSerializer, LocationSerializer
 
-def isPrime(n):
-    """
-    Check if a number is prime n (int).
-    Returns:
-    - bool: True if the number is prime, False otherwise.
-    """
-    for i in range(2, int(n**0.5) + 1):
-        if n % i == 0:
-            return False
-    return True
+class requestHS(generics.GenericAPIView):
+
+    def getClients(self, access_token):
+        try:
+            client = hubspot.Client.create(access_token=access_token)
+
+            clients_data, after = [], None
+            while True:
+                response = client.crm.contacts.basic_api.get_page(
+                    properties=[
+                        "character_id",
+                        "firstname",
+                        "lastname",
+                        "status_character",
+                        "character_species",
+                        "character_gender",
+                        "location_id"
+                    ], 
+                    limit=100, archived=False, after=after
+                )
+                
+                for result in response.results:
+                    client_info = {
+                        'id': result.id,
+                        'properties': result.properties,
+                    }
+                    clients_data.append(client_info)
+
+                if response.paging and response.paging.next:
+                    after = response.paging.next.after
+                else:
+                    break
+
+            return clients_data
+
+        except Exception as e:
+            date = timezone.now().strftime("%Y-%m-%d %H:%M")
+            with open(os.path.join(settings.BASE_DIR, 'logs/core.log'), 'a') as f:
+                f.write("fetchClients {} --> Error: {}\n".format(date, str(e)))
 
 
-def getClients(access_token):
-    try:
-        client = hubspot.Client.create(access_token=access_token)
+    def getCompanies(self, access_token):
+        try:
+            client = hubspot.Client.create(access_token=access_token)
 
-        clients_data, after = [], None
-        while True:
-            response = client.crm.contacts.basic_api.get_page(
-                properties=[
-                    "character_id",
-                    "firstname",
-                    "lastname",
-                    "status_character",
-                    "character_species",
-                    "character_gender",
-                    "location_id"
-                ], 
-                limit=100, archived=False, after=after
-            )
-            
-            for result in response.results:
-                client_info = {
-                    'id': result.id,
-                    'properties': result.properties,
-                }
-                clients_data.append(client_info)
+            data, after = [], None
+            while True:
+                response = client.crm.companies.basic_api.get_page(
+                    properties=[
+                        "location_id",
+                        "name",
+                        "location_type",
+                        "dimension",
+                        "creation_date"
+                    ], 
+                    limit=100, archived=False, after=after
+                )
+                
+                for result in response.results:
+                    client_info = {
+                        'id': result.id,
+                        'properties': result.properties,
+                    }
+                    data.append(client_info)
 
-            if response.paging and response.paging.next:
-                after = response.paging.next.after
-            else:
-                break
+                if response.paging and response.paging.next:
+                    after = response.paging.next.after
+                else:
+                    break
 
-        return clients_data
+            return data
 
-    except Exception as e:
-        date = timezone.now().strftime("%Y-%m-%d %H:%M")
-        with open(os.path.join(settings.BASE_DIR, 'logs/core.log'), 'a') as f:
-            f.write("fetchClients {} --> Error: {}\n".format(date, str(e)))
+        except Exception as e:
+            date = timezone.now().strftime("%Y-%m-%d %H:%M")
+            with open(os.path.join(settings.BASE_DIR, 'logs/core.log'), 'a') as f:
+                f.write("fetchClients {} --> Error: {}\n".format(date, str(e)))
 
 
-def getCompanies(access_token):
-    try:
-        client = hubspot.Client.create(access_token=access_token)
+    def makeAssociations(self, access_token):
+        data_clients = self.getClients(access_token=access_token)
+        dict_clients = [
+            {
+                'client': client['id'],
+                'location_id': client['properties'].get('location_id', None),
+            }
+            for client in data_clients
+        ]
 
-        data, after = [], None
-        while True:
-            response = client.crm.companies.basic_api.get_page(
-                properties=[
-                    "location_id",
-                    "name",
-                    "location_type",
-                    "dimension",
-                    "creation_date"
-                ], 
-                limit=100, archived=False, after=after
-            )
-            
-            for result in response.results:
-                client_info = {
-                    'id': result.id,
-                    'properties': result.properties,
-                }
-                data.append(client_info)
+        data_companies = self.getCompanies(access_token=access_token)
+        dict_companies = [
+            {
+                'companie': client['id'],
+                'location_id': client['properties'].get('location_id', None),
+            }
+            for client in data_companies
+        ]
 
-            if response.paging and response.paging.next:
-                after = response.paging.next.after
-            else:
-                break
+        associations = {}
+        for d1 in dict_clients:
+            for d2 in dict_companies:
+                if d1["location_id"] == d2["location_id"]:
+                    associations[d1["client"]] = d2["companie"]
 
-        return data
 
-    except Exception as e:
-        date = timezone.now().strftime("%Y-%m-%d %H:%M")
-        with open(os.path.join(settings.BASE_DIR, 'logs/core.log'), 'a') as f:
-            f.write("fetchClients {} --> Error: {}\n".format(date, str(e)))
+        data = []
+        for key, value in associations.items():
+            elemento_transformado = {"from": {"id": key},"to": {"id": value}}
+            data.append(elemento_transformado)
+
+
+        batch = 50
+        batchLocations = [data[i:i+batch] for i in range(0, len(data), batch)]
+        try:
+            client = hubspot.Client.create(access_token=access_token)
+            for batch in batchLocations:
+                batch_input_public_default_association_multi_post = BatchInputPublicDefaultAssociationMultiPost(
+                    inputs=batch
+                )
+                client.crm.associations.v4.batch_api.create_default(
+                    from_object_type="contacts",
+                    to_object_type="companies",
+                    batch_input_public_default_association_multi_post=batch_input_public_default_association_multi_post
+                )            
+
+        except Exception as e:
+            date = timezone.now().strftime("%Y-%m-%d %H:%M")
+            with open(os.path.join(settings.BASE_DIR, 'logs/core.log'), 'a') as f:
+                f.write("fetchClients {} --> Error: {}\n".format(date, str(e)))
 
 
 class requestRM(generics.GenericAPIView):
+
+    def isPrime(self, n):
+        """
+        Check if a number is prime n (int).
+        Returns:
+        - bool: True if the number is prime, False otherwise.
+        """
+        for i in range(2, int(n**0.5) + 1):
+            if n % i == 0:
+                return False
+        return True
 
     def get_characters(self):
         characters, page = [], 1
@@ -113,7 +164,7 @@ class requestRM(generics.GenericAPIView):
             if not characters_data['info']['next']:
                 break
             page += 1
-        data = [character for character in characters if isPrime(character['id'])]
+        data = [character for character in characters if self.isPrime(character['id'])]
         return data
 
     def get_locations(self):
@@ -194,63 +245,7 @@ class requestCompanies(requestRM):
             return Response({'error': 'Error fetching locations.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-class requestAssociations(generics.GenericAPIView):
-    permission_classes = [AllowAny]
-    def post(self, request, *args, **kwargs):
-        try:
 
-            data_clients = getClients()
-            dict_clients = [
-                {
-                    'client': client['id'],
-                    'location_id': client['properties'].get('location_id', None),
-                }
-                for client in data_clients
-            ]
-
-            data_companies = getCompanies()
-            dict_companies = [
-                {
-                    'companie': client['id'],
-                    'location_id': client['properties'].get('location_id', None),
-                }
-                for client in data_companies
-            ]
-
-            associations = {}
-            for d1 in dict_clients:
-                for d2 in dict_companies:
-                    if d1["location_id"] == d2["location_id"]:
-                        associations[d1["client"]] = d2["companie"]
-
-
-            data = []
-            for key, value in associations.items():
-                elemento_transformado = {"from": {"id": key},"to": {"id": value}}
-                data.append(elemento_transformado)
-
-
-            batch = 50
-            batchLocations = [data[i:i+batch] for i in range(0, len(data), batch)]
-
-            client = hubspot.Client.create(access_token="pat-na1-4de0014b-a034-43c6-aee2-b9261311121c")
-            for batch in batchLocations:
-                batch_input_public_default_association_multi_post = BatchInputPublicDefaultAssociationMultiPost(
-                    inputs=batch
-                )
-                client.crm.associations.v4.batch_api.create_default(
-                    from_object_type="contacts",
-                    to_object_type="companies",
-                    batch_input_public_default_association_multi_post=batch_input_public_default_association_multi_post
-                )
-            
-            return Response({'succes': 'The batches of associations have been created.'}, status=status.HTTP_201_CREATED)
-
-        except Exception as e:
-            date = timezone.now().strftime("%Y-%m-%d %H:%M")
-            with open(os.path.join(settings.BASE_DIR, 'logs/core.log'), 'a') as f:
-                f.write("requestAssociations {} --> Error: {}\n".format(date, str(e)))
-            return Response({'error': 'Error fetching associations.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
 
 class mirrorHubspotContacts(generics.GenericAPIView):
@@ -341,56 +336,25 @@ class mirrorHubspotCompanies(generics.GenericAPIView):
             return Response({'error': 'Failed to update/created company.'}, status=status.HTTP_403_FORBIDDEN)
 
 
-class mirrorHubspotAssociations(generics.GenericAPIView):
+class mirrorHubspotAssociations(requestHS):
     permission_classes = [AllowAny]
     def post(self, request, *args, **kwargs):
         try:
+            self.makeAssociations(access_token="pat-na1-5db5fd91-2648-49cb-8a58-3299a4bc6a61")
+            return Response({'succes': 'The batches of associations have been created.'}, status=status.HTTP_201_CREATED)
 
-            data_clients = getClients(access_token="pat-na1-5db5fd91-2648-49cb-8a58-3299a4bc6a61")
-            dict_clients = [
-                {
-                    'client': client['id'],
-                    'location_id': client['properties'].get('location_id', None),
-                }
-                for client in data_clients
-            ]
-
-            data_companies = getCompanies(access_token="pat-na1-5db5fd91-2648-49cb-8a58-3299a4bc6a61")
-            dict_companies = [
-                {
-                    'companie': client['id'],
-                    'location_id': client['properties'].get('location_id', None),
-                }
-                for client in data_companies
-            ]
-
-            associations = {}
-            for d1 in dict_clients:
-                for d2 in dict_companies:
-                    if d1["location_id"] == d2["location_id"]:
-                        associations[d1["client"]] = d2["companie"]
+        except Exception as e:
+            date = timezone.now().strftime("%Y-%m-%d %H:%M")
+            with open(os.path.join(settings.BASE_DIR, 'logs/core.log'), 'a') as f:
+                f.write("requestAssociations {} --> Error: {}\n".format(date, str(e)))
+            return Response({'error': 'Error fetching associations.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-            data = []
-            for key, value in associations.items():
-                elemento_transformado = {"from": {"id": key},"to": {"id": value}}
-                data.append(elemento_transformado)
-
-
-            batch = 50
-            batchLocations = [data[i:i+batch] for i in range(0, len(data), batch)]
-
-            client = hubspot.Client.create(access_token="pat-na1-5db5fd91-2648-49cb-8a58-3299a4bc6a61")
-            for batch in batchLocations:
-                batch_input_public_default_association_multi_post = BatchInputPublicDefaultAssociationMultiPost(
-                    inputs=batch
-                )
-                client.crm.associations.v4.batch_api.create_default(
-                    from_object_type="contacts",
-                    to_object_type="companies",
-                    batch_input_public_default_association_multi_post=batch_input_public_default_association_multi_post
-                )
-            
+class requestAssociations(requestHS):
+    permission_classes = [AllowAny]
+    def post(self, request, *args, **kwargs):
+        try:
+            self.makeAssociations(access_token="pat-na1-4de0014b-a034-43c6-aee2-b9261311121c")
             return Response({'succes': 'The batches of associations have been created.'}, status=status.HTTP_201_CREATED)
 
         except Exception as e:
