@@ -11,6 +11,14 @@ class CharacterSerializer(serializers.Serializer):
     location_id = serializers.SerializerMethodField()
 
     def get_firstname(self, obj):
+        """
+        Retrieves the first name from an object containing a 'name' field.
+
+        :param obj: Object containing name information.
+        :type obj: dict
+        :return: Extracted first name.
+        :rtype: str
+        """
         full_name = obj.get('name', '')
         if full_name:
             names = full_name.split()
@@ -18,6 +26,14 @@ class CharacterSerializer(serializers.Serializer):
         return ''
 
     def get_lastname(self, obj):
+        """
+        Retrieves the last name from an object containing a 'name' field.
+
+        :param obj: Object containing name information.
+        :type obj: dict
+        :return: Extracted last name.
+        :rtype: str
+        """
         full_name = obj.get('name', '')
         if full_name:
             names = full_name.split()
@@ -25,6 +41,14 @@ class CharacterSerializer(serializers.Serializer):
         return ''
 
     def get_location_id(self, obj):
+        """
+        Retrieves the location ID from an object containing a 'location' field with a URL.
+
+        :param obj: Object containing location information.
+        :type obj: dict
+        :return: Extracted location ID.
+        :rtype: int or str (in case ID is not found)
+        """
         location_id = re.search(r'/(\d+)$', obj.get('location', {}).get('url', ''))
         return int(location_id.group(1)) if location_id else ''
 

@@ -25,7 +25,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-60z923ynj8foohkqai2$7d3e11vu&my$y_w@ziyd#zb0wsb&qv'
+SECRET_KEY = os.getenv("SECRET_KEY")
+
+HUBSOPT_SOURCE_KEY = os.getenv('HUBSOPT_SOURCE_KEY')
+HUBSOPT_MIRROR_KEY = os.getenv('HUBSOPT_MIRROR_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG=False
@@ -159,9 +162,10 @@ MEDIA_URL = '/'
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+AUTH_USER_MODEL = "app.Account"
 
 STATIC_URL = "/static/"
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles/')
+STATIC_ROOT = os.path.join(BASE_DIR, 'static/staticfiles/')
 STATICFILES_DIRS = [BASE_DIR/"static"]
 
 # Media files (video, text, Images)

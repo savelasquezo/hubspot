@@ -13,9 +13,27 @@ from hubspot.crm.associations.v4 import BatchInputPublicDefaultAssociationMultiP
 
 from app.serializers import CharacterSerializer, LocationSerializer
 
-class requestHS(generics.GenericAPIView):
+HUBSOPT_SOURCE_KEY = settings.HUBSOPT_SOURCE_KEY
+HUBSOPT_MIRROR_KEY = settings.HUBSOPT_MIRROR_KEY
 
+class requestHS(generics.GenericAPIView):
+    """
+    Generic API view for handling requests related to characters and locations.
+
+    Methods:
+    - getClients: Fetches client information from HubSpot using the provided access token.
+    - getCompanies: Fetches company information from HubSpot using the provided access token.
+    - makeAssociations: Creates associations between clients and companies based on matching location IDs.
+    """
     def getClients(self, access_token):
+        """
+        Fetches client information from HubSpot using the provided access token.
+
+        :param access_token: HubSpot access token for authentication.
+        :type access_token: str
+        :return: List of dictionaries containing client information.
+        :rtype: list
+        """
         try:
             client = hubspot.Client.create(access_token=access_token)
 
@@ -55,6 +73,14 @@ class requestHS(generics.GenericAPIView):
 
 
     def getCompanies(self, access_token):
+        """
+        Fetches company information from HubSpot using the provided access token.
+
+        :param access_token: HubSpot access token for authentication.
+        :type access_token: str
+        :return: List of dictionaries containing company information.
+        :rtype: list
+        """
         try:
             client = hubspot.Client.create(access_token=access_token)
 
@@ -92,6 +118,13 @@ class requestHS(generics.GenericAPIView):
 
 
     def makeAssociations(self, access_token):
+        """
+        Creates associations between clients and companies based on matching location IDs.
+
+        :param access_token: HubSpot access token for authentication.
+        :type access_token: str
+        :return: None
+        """
         data_clients = self.getClients(access_token=access_token)
         dict_clients = [
             {
@@ -144,7 +177,14 @@ class requestHS(generics.GenericAPIView):
 
 
 class requestRM(generics.GenericAPIView):
+    """
+    Generic API view for handling requests related to characters and locations.
 
+    Methods:
+    - isPrime: Checks if a number is prime.
+    - get_characters: Retrieves characters from the RAM API, filtering prime IDs.
+    - get_locations: Retrieves locations associated with prime ID characters.
+    """
     def isPrime(self, n):
         """
         Check if a number is prime n (int).
@@ -157,6 +197,12 @@ class requestRM(generics.GenericAPIView):
         return True
 
     def get_characters(self):
+        """
+        Retrieves characters from the RAM API, filtering by prime IDs.
+
+        :return: List of characters with prime IDs.
+        :rtype: list
+        """
         characters, page = [], 1
         while True:
             characters_data = ramapi.Character.get_page(page)
@@ -168,6 +214,12 @@ class requestRM(generics.GenericAPIView):
         return data
 
     def get_locations(self):
+        """
+        Retrieves locations associated with prime ID characters.
+
+        :return: List of locations.
+        :rtype: list
+        """
         characters = self.get_characters()
         idLocations = []
         for item in characters:
@@ -179,17 +231,32 @@ class requestRM(generics.GenericAPIView):
         return data
 
 class requestContacts(requestRM):
+    """
+    API view for handling requests related to contacts.
+
+    Attributes:
+    - permission_classes: List of permission classes, allowing any user to access.
+    - serializer_class: Serializer class for character information.
+    """
     permission_classes = [AllowAny]
     serializer_class = CharacterSerializer
 
     def post(self, request, *args, **kwargs):
+        """
+        Handles POST requests to create batches of contacts in HubSpot.
+
+        :param request: HTTP request.
+        :type request: rest_framework.request.Request
+        :return: Response indicating the success or failure of the batch creation.
+        :rtype: rest_framework.response.Response
+        """
         try:
             data = self.get_characters()
 
             size = 50
             batchCharacters = [data[i:i+size] for i in range(0, len(data), size)]
 
-            client = hubspot.Client.create(access_token="pat-na1-4de0014b-a034-43c6-aee2-b9261311121c")
+            client = hubspot.Client.create(access_token=HUBSOPT_SOURCE_KEY)
             for batch in batchCharacters:
                 serializer = self.serializer_class(batch, many=True)
                 dataInput = [{"properties": item} for item in serializer.data]
@@ -213,17 +280,32 @@ class requestContacts(requestRM):
 
 
 class requestCompanies(requestRM):
+    """
+    API view for handling requests related to companies.
+
+    Attributes:
+    - permission_classes: List of permission classes, allowing any user to access.
+    - serializer_class: Serializer class for location information.
+    """
     permission_classes = [AllowAny]
     serializer_class = LocationSerializer
 
     def post(self, request, *args, **kwargs):
+        """
+        Handles POST requests to create batches of companies in HubSpot.
+
+        :param request: HTTP request.
+        :type request: rest_framework.request.Request
+        :return: Response indicating the success or failure of the batch creation.
+        :rtype: rest_framework.response.Response
+        """
         try:
             data = self.get_locations()
 
             size = 50
             batchLocations = [data[i:i+size] for i in range(0, len(data), size)]
 
-            client = hubspot.Client.create(access_token="pat-na1-4de0014b-a034-43c6-aee2-b9261311121c")
+            client = hubspot.Client.create(access_token=HUBSOPT_SOURCE_KEY)
             for batch in batchLocations:
                 serializer = self.serializer_class(batch, many=True)
                 dataInput = [{"properties": item} for item in serializer.data]
@@ -249,18 +331,33 @@ class requestCompanies(requestRM):
         
 
 class mirrorHubspotContacts(generics.GenericAPIView):
+    """
+    API view for mirroring HubSpot contacts.
+
+    Attributes:
+    - permission_classes: List of permission classes, allowing any user to access.
+    """
     permission_classes = [AllowAny]
+
     def post(self, request, *args, **kwargs):
+        """
+        Handles POST requests to mirror HubSpot contacts.
+
+        :param request: HTTP request.
+        :type request: rest_framework.request.Request
+        :return: Response indicating the success or failure of the operation.
+        :rtype: rest_framework.response.Response
+        """
         hubspot_secret = request.headers.get('HubSpotSecret')
 
         if not hubspot_secret:
             return Response({'error': 'HubSpotSecret not Found'}, status=status.HTTP_400_BAD_REQUEST)
         
-        if hubspot_secret != "pat-na1-4de0014b-a034-43c6-aee2-b9261311121c":
+        if hubspot_secret != HUBSOPT_SOURCE_KEY:
             return Response({'error': 'Authentication failed: X-HubSpot-Secret mismatch.'}, status=status.HTTP_401_UNAUTHORIZED)
 
         try:
-            client = hubspot.Client.create(access_token="pat-na1-5db5fd91-2648-49cb-8a58-3299a4bc6a61")
+            client = hubspot.Client.create(access_token=HUBSOPT_MIRROR_KEY)
             
             data = request.data
             characterID = data.get('character_id', '')
@@ -295,18 +392,33 @@ class mirrorHubspotContacts(generics.GenericAPIView):
 
 
 class mirrorHubspotCompanies(generics.GenericAPIView):
+    """
+    API view for mirroring HubSpot companies.
+
+    Attributes:
+    - permission_classes: List of permission classes, allowing any user to access.
+    """
     permission_classes = [AllowAny]
+
     def post(self, request, *args, **kwargs):
+        """
+        Handles POST requests to mirror HubSpot companies.
+
+        :param request: HTTP request.
+        :type request: rest_framework.request.Request
+        :return: Response indicating the success or failure of the operation.
+        :rtype: rest_framework.response.Response
+        """
         hubspot_secret = request.headers.get('HubSpotSecret')
 
         if not hubspot_secret:
             return Response({'error': 'HubSpotSecret not Found'}, status=status.HTTP_400_BAD_REQUEST)
         
-        if hubspot_secret != "pat-na1-4de0014b-a034-43c6-aee2-b9261311121c":
+        if hubspot_secret != HUBSOPT_SOURCE_KEY:
             return Response({'error': 'Authentication failed: X-HubSpot-Secret mismatch.'}, status=status.HTTP_401_UNAUTHORIZED)
 
         try:
-            client = hubspot.Client.create(access_token="pat-na1-5db5fd91-2648-49cb-8a58-3299a4bc6a61")
+            client = hubspot.Client.create(access_token=HUBSOPT_MIRROR_KEY)
             
             data = request.data
             locationID = data.get('location_id', '')
@@ -337,10 +449,25 @@ class mirrorHubspotCompanies(generics.GenericAPIView):
 
 
 class mirrorHubspotAssociations(requestHS):
+    """
+    API view for mirroring HubSpot associations.
+
+    Attributes:
+    - permission_classes: List of permission classes, allowing any user to access.
+    """
     permission_classes = [AllowAny]
+
     def post(self, request, *args, **kwargs):
+        """
+        Handles POST requests to create batches of associations in HubSpot.
+
+        :param request: HTTP request.
+        :type request: rest_framework.request.Request
+        :return: Response indicating the success or failure of the batch creation.
+        :rtype: rest_framework.response.Response
+        """
         try:
-            self.makeAssociations(access_token="pat-na1-5db5fd91-2648-49cb-8a58-3299a4bc6a61")
+            self.makeAssociations(access_token=HUBSOPT_MIRROR_KEY)
             return Response({'succes': 'The batches of associations have been created.'}, status=status.HTTP_201_CREATED)
 
         except Exception as e:
@@ -351,10 +478,26 @@ class mirrorHubspotAssociations(requestHS):
 
 
 class requestAssociations(requestHS):
+    """
+    API view for handling requests to create batches of associations in HubSpot.
+
+    Attributes:
+    - permission_classes: List of permission classes, allowing any user to access.
+    """
+
+
     permission_classes = [AllowAny]
     def post(self, request, *args, **kwargs):
+        """
+        Handles POST requests to create batches of associations in HubSpot.
+
+        :param request: HTTP request.
+        :type request: rest_framework.request.Request
+        :return: Response indicating the success or failure of the batch creation.
+        :rtype: rest_framework.response.Response
+        """
         try:
-            self.makeAssociations(access_token="pat-na1-4de0014b-a034-43c6-aee2-b9261311121c")
+            self.makeAssociations(access_token=HUBSOPT_SOURCE_KEY)
             return Response({'succes': 'The batches of associations have been created.'}, status=status.HTTP_201_CREATED)
 
         except Exception as e:
