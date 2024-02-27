@@ -281,7 +281,7 @@ class mirrorHubspotContacts(generics.GenericAPIView):
             }
 
 
-            public_object_search_request = PublicObjectSearchRequest(properties=["hs_object_id"], filter_groups=[{"filters":[{"propertyName":"character_id","value":"2","operator":"EQ"}]}],limit=1)
+            public_object_search_request = PublicObjectSearchRequest(properties=["hs_object_id"], filter_groups=[{"filters":[{"propertyName":"character_id","value":characterID,"operator":"EQ"}]}],limit=1)
             response = client.crm.contacts.search_api.do_search(public_object_search_request=public_object_search_request)
             pprint(f'response-------------------{response}')
             if response.total > 0:
