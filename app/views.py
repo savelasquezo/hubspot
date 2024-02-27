@@ -283,7 +283,6 @@ class mirrorHubspotContacts(generics.GenericAPIView):
 
             public_object_search_request = PublicObjectSearchRequest(properties=["hs_object_id"], filter_groups=[{"filters":[{"propertyName":"character_id","value":characterID,"operator":"EQ"}]}],limit=1)
             response = client.crm.contacts.search_api.do_search(public_object_search_request=public_object_search_request)
-            pprint(f'response-------------------{response}')
             if response.total > 0:
                 contactID = response.results[0].properties.get('hs_object_id', None)
                 simple_public_object_input = SimplePublicObjectInput(properties=properties)
@@ -296,26 +295,6 @@ class mirrorHubspotContacts(generics.GenericAPIView):
 
         except ApiException as e:
             return Response({'error': 'Failed to update/created client.'}, status=status.HTTP_403_FORBIDDEN)
-
-
-        
-
-
-
-public_object_search_request = PublicObjectSearchRequest(query="string", limit=0, after="string", sorts=["string"], properties=["string"], filter_groups=[{"filters":[{"highValue":"string","propertyName":"string","values":["string"],"value":"string","operator":"EQ"}]}])
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
