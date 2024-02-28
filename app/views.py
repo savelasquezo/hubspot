@@ -16,15 +16,65 @@ from app.serializers import CharacterSerializer, LocationSerializer
 HUBSOPT_SOURCE_KEY = settings.HUBSOPT_SOURCE_KEY
 HUBSOPT_MIRROR_KEY = settings.HUBSOPT_MIRROR_KEY
 
-class requestHS(generics.GenericAPIView):
+
+class requestRM(generics.GenericAPIView):
     """
     Generic API view for handling requests related to characters and locations.
 
     Methods:
+    - isPrime: Checks if a number is prime.
+    - get_characters: Retrieves characters from the RAM API, filtering prime IDs.
+    - get_locations: Retrieves locations associated with prime ID characters.
     - getClients: Fetches client information from HubSpot using the provided access token.
     - getCompanies: Fetches company information from HubSpot using the provided access token.
     - makeAssociations: Creates associations between clients and companies based on matching location IDs.
     """
+    def isPrime(self, n):
+        """
+        Check if a number is prime n (int).
+        Returns:
+        - bool: True if the number is prime, False otherwise.
+        """
+        for i in range(2, int(n**0.5) + 1):
+            if n % i == 0:
+                return False
+        return True
+
+    def get_characters(self):
+        """
+        Retrieves characters from the RAM API, filtering by prime IDs.
+
+        :return: List of characters with prime IDs.
+        :rtype: list
+        """
+        characters, page = [], 1
+        while True:
+            characters_data = ramapi.Character.get_page(page)
+            characters.extend(characters_data['results'])
+            if not characters_data['info']['next']:
+                break
+            page += 1
+        data = [character for character in characters if self.isPrime(character['id'])]
+        return data
+
+    def get_locations(self):
+        """
+        Retrieves locations associated with prime ID characters.
+
+        :return: List of locations.
+        :rtype: list
+        """
+        characters = self.get_characters()
+        idLocations = []
+        for item in characters:
+            match = re.search(r'/(\d+)$', item['location']['url'])
+            if match:
+                idLocations.append(int(match.group(1)))
+        idLocations = sorted(set(idLocations))
+        data = ramapi.Location.get(idLocations)
+        return data
+
+
     def getClients(self, access_token):
         """
         Fetches client information from HubSpot using the provided access token.
@@ -176,60 +226,6 @@ class requestHS(generics.GenericAPIView):
                 f.write("fetchClients {} --> Error: {}\n".format(date, str(e)))
 
 
-class requestRM(generics.GenericAPIView):
-    """
-    Generic API view for handling requests related to characters and locations.
-
-    Methods:
-    - isPrime: Checks if a number is prime.
-    - get_characters: Retrieves characters from the RAM API, filtering prime IDs.
-    - get_locations: Retrieves locations associated with prime ID characters.
-    """
-    def isPrime(self, n):
-        """
-        Check if a number is prime n (int).
-        Returns:
-        - bool: True if the number is prime, False otherwise.
-        """
-        for i in range(2, int(n**0.5) + 1):
-            if n % i == 0:
-                return False
-        return True
-
-    def get_characters(self):
-        """
-        Retrieves characters from the RAM API, filtering by prime IDs.
-
-        :return: List of characters with prime IDs.
-        :rtype: list
-        """
-        characters, page = [], 1
-        while True:
-            characters_data = ramapi.Character.get_page(page)
-            characters.extend(characters_data['results'])
-            if not characters_data['info']['next']:
-                break
-            page += 1
-        data = [character for character in characters if self.isPrime(character['id'])]
-        return data
-
-    def get_locations(self):
-        """
-        Retrieves locations associated with prime ID characters.
-
-        :return: List of locations.
-        :rtype: list
-        """
-        characters = self.get_characters()
-        idLocations = []
-        for item in characters:
-            match = re.search(r'/(\d+)$', item['location']['url'])
-            if match:
-                idLocations.append(int(match.group(1)))
-        idLocations = sorted(set(idLocations))
-        data = ramapi.Location.get(idLocations)
-        return data
-
 class requestContacts(requestRM):
     """
     API view for handling requests related to contacts.
@@ -251,12 +247,17 @@ class requestContacts(requestRM):
         :rtype: rest_framework.response.Response
         """
         try:
-            data = self.get_characters()
+            client = hubspot.Client.create(access_token=HUBSOPT_SOURCE_KEY)
+            public_object_search_request = PublicObjectSearchRequest(properties=["hs_object_id"], filter_groups=[{"filters":[{"propertyName":"character_id","value":1,"operator":"GTE"}]}],limit=1)
+            response = client.crm.contacts.search_api.do_search(public_object_search_request=public_object_search_request)
+            if response.total >= 1:
+                return Response({'details': 'The migrations have already been carried out, you cannot do it again'}, status=status.HTTP_208_ALREADY_REPORTED)
 
+            data = self.get_characters()
             size = 50
             batchCharacters = [data[i:i+size] for i in range(0, len(data), size)]
 
-            client = hubspot.Client.create(access_token=HUBSOPT_SOURCE_KEY)
+            
             for batch in batchCharacters:
                 serializer = self.serializer_class(batch, many=True)
                 dataInput = [{"properties": item} for item in serializer.data]
@@ -268,6 +269,18 @@ class requestContacts(requestRM):
                 client.crm.contacts.batch_api.create(
                     batch_input_simple_public_object_input_for_create=batch_input_simple_public_object_input_for_create
                 )
+
+
+            public_object_search_request = PublicObjectSearchRequest(properties=["hs_object_id"], filter_groups=[{"filters":[{"propertyName":"location_id","value":1,"operator":"GTE"}]}],limit=1)
+            response = client.crm.companies.search_api.do_search(public_object_search_request=public_object_search_request)
+            if response.total >= 1:
+                try:
+                    self.makeAssociations(access_token=HUBSOPT_SOURCE_KEY)
+                    return Response({'succes': 'the batches of clients have been created and associated.'}, status=status.HTTP_201_CREATED)
+                except Exception as e:
+                    date = timezone.now().strftime("%Y-%m-%d %H:%M")
+                    with open(os.path.join(settings.BASE_DIR, 'logs/core.log'), 'a') as f:
+                        f.write("makeAssociations-requestContacts {} --> Error: {}\n".format(date, str(e)))
 
             return Response({'succes': 'The batches of clients have been created.'}, status=status.HTTP_201_CREATED)
 
@@ -300,12 +313,19 @@ class requestCompanies(requestRM):
         :rtype: rest_framework.response.Response
         """
         try:
+
+            client = hubspot.Client.create(access_token=HUBSOPT_SOURCE_KEY)
+            public_object_search_request = PublicObjectSearchRequest(properties=["hs_object_id"], filter_groups=[{"filters":[{"propertyName":"location_id","value":1,"operator":"GTE"}]}],limit=1)
+            response = client.crm.companies.search_api.do_search(public_object_search_request=public_object_search_request)
+            if response.total >= 1:
+                return Response({'details': 'The migrations have already been carried out, you cannot do it again'}, status=status.HTTP_208_ALREADY_REPORTED)
+
             data = self.get_locations()
 
             size = 50
             batchLocations = [data[i:i+size] for i in range(0, len(data), size)]
 
-            client = hubspot.Client.create(access_token=HUBSOPT_SOURCE_KEY)
+            
             for batch in batchLocations:
                 serializer = self.serializer_class(batch, many=True)
                 dataInput = [{"properties": item} for item in serializer.data]
@@ -317,6 +337,17 @@ class requestCompanies(requestRM):
                 client.crm.companies.batch_api.create(
                     batch_input_simple_public_object_input_for_create=batch_input_simple_public_object_input_for_create
                 )
+
+            public_object_search_request = PublicObjectSearchRequest(properties=["hs_object_id"], filter_groups=[{"filters":[{"propertyName":"character_id","value":1,"operator":"GTE"}]}],limit=1)
+            response = client.crm.contacts.search_api.do_search(public_object_search_request=public_object_search_request)
+            if response.total >= 1:
+                try:
+                    self.makeAssociations(access_token=HUBSOPT_SOURCE_KEY)
+                    return Response({'succes': 'the batches of companies have been created and associated.'}, status=status.HTTP_201_CREATED)
+                except Exception as e:
+                    date = timezone.now().strftime("%Y-%m-%d %H:%M")
+                    with open(os.path.join(settings.BASE_DIR, 'logs/core.log'), 'a') as f:
+                        f.write("makeAssociations-requestCompanies {} --> Error: {}\n".format(date, str(e)))
 
             return Response({'succes': 'The batches of companies have been created.'}, status=status.HTTP_201_CREATED)
 
@@ -330,7 +361,7 @@ class requestCompanies(requestRM):
 
         
 
-class mirrorHubspotContacts(generics.GenericAPIView):
+class mirrorHubspotContacts(requestRM):
     """
     API view for mirroring HubSpot contacts.
 
@@ -379,11 +410,19 @@ class mirrorHubspotContacts(generics.GenericAPIView):
                 contactID = response.results[0].properties.get('hs_object_id', None)
                 simple_public_object_input = SimplePublicObjectInput(properties=properties)
                 client.crm.contacts.basic_api.update(contact_id=contactID, simple_public_object_input=simple_public_object_input)
-                return Response({'succes': 'The contact has been update.'}, status=status.HTTP_201_CREATED)
+                
+                try:
+                    self.makeAssociations(access_token=HUBSOPT_MIRROR_KEY)
+                except Exception as e:
+                    date = timezone.now().strftime("%Y-%m-%d %H:%M")
+                    with open(os.path.join(settings.BASE_DIR, 'logs/core.log'), 'a') as f:
+                        f.write("makeAssociations-mirrorHubspotContacts {} --> Error: {}\n".format(date, str(e)))
+
+                return Response({'succes': 'The contact has been update.'}, status=status.HTTP_200_OK)
 
             simple_public_object_input_for_create = SimplePublicObjectInputForCreate(properties=properties)
             client.crm.contacts.basic_api.create(simple_public_object_input_for_create=simple_public_object_input_for_create)
-            return Response({'succes': 'The contact has been created.'}, status=status.HTTP_200_OK)
+            return Response({'succes': 'The contact has been created.'}, status=status.HTTP_201_CREATED)
 
         except ApiException as e:
             return Response({'error': 'Failed to update/created client.'}, status=status.HTTP_403_FORBIDDEN)
@@ -391,7 +430,7 @@ class mirrorHubspotContacts(generics.GenericAPIView):
 
 
 
-class mirrorHubspotCompanies(generics.GenericAPIView):
+class mirrorHubspotCompanies(requestRM):
     """
     API view for mirroring HubSpot companies.
 
@@ -438,19 +477,28 @@ class mirrorHubspotCompanies(generics.GenericAPIView):
                 companyID = response.results[0].properties.get('hs_object_id', None)
                 simple_public_object_input = SimplePublicObjectInput(properties=properties)
                 client.crm.companies.basic_api.update(company_id=companyID, simple_public_object_input=simple_public_object_input)
-                return Response({'succes': 'The company has been update.'}, status=status.HTTP_201_CREATED)
+                
+                try:
+                    self.makeAssociations(access_token=HUBSOPT_MIRROR_KEY)
+                except Exception as e:
+                    date = timezone.now().strftime("%Y-%m-%d %H:%M")
+                    with open(os.path.join(settings.BASE_DIR, 'logs/core.log'), 'a') as f:
+                        f.write("makeAssociations-mirrorHubspotCompanies {} --> Error: {}\n".format(date, str(e)))
+
+                return Response({'succes': 'The company has been update.'}, status=status.HTTP_200_OK)
 
             simple_public_object_input_for_create = SimplePublicObjectInputForCreate(properties=properties)
             client.crm.companies.basic_api.create(simple_public_object_input_for_create=simple_public_object_input_for_create)
-            return Response({'succes': 'The company has been created.'}, status=status.HTTP_200_OK)
+            return Response({'succes': 'The company has been created.'}, status=status.HTTP_201_CREATED)
 
         except ApiException as e:
             return Response({'error': 'Failed to update/created company.'}, status=status.HTTP_403_FORBIDDEN)
 
 
-class mirrorHubspotAssociations(requestHS):
+
+class sourceHubspotAssociations(requestRM):
     """
-    API view for mirroring HubSpot associations.
+    API view for source HubSpot make manually associations.
 
     Attributes:
     - permission_classes: List of permission classes, allowing any user to access.
@@ -458,50 +506,26 @@ class mirrorHubspotAssociations(requestHS):
     permission_classes = [AllowAny]
 
     def post(self, request, *args, **kwargs):
-        """
-        Handles POST requests to create batches of associations in HubSpot.
-
-        :param request: HTTP request.
-        :type request: rest_framework.request.Request
-        :return: Response indicating the success or failure of the batch creation.
-        :rtype: rest_framework.response.Response
-        """
-        try:
-            self.makeAssociations(access_token=HUBSOPT_MIRROR_KEY)
-            return Response({'succes': 'The batches of associations have been created.'}, status=status.HTTP_201_CREATED)
-
-        except Exception as e:
-            date = timezone.now().strftime("%Y-%m-%d %H:%M")
-            with open(os.path.join(settings.BASE_DIR, 'logs/core.log'), 'a') as f:
-                f.write("requestAssociations {} --> Error: {}\n".format(date, str(e)))
-            return Response({'error': 'Error fetching associations.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
-class requestAssociations(requestHS):
-    """
-    API view for handling requests to create batches of associations in HubSpot.
-
-    Attributes:
-    - permission_classes: List of permission classes, allowing any user to access.
-    """
-
-
-    permission_classes = [AllowAny]
-    def post(self, request, *args, **kwargs):
-        """
-        Handles POST requests to create batches of associations in HubSpot.
-
-        :param request: HTTP request.
-        :type request: rest_framework.request.Request
-        :return: Response indicating the success or failure of the batch creation.
-        :rtype: rest_framework.response.Response
-        """
         try:
             self.makeAssociations(access_token=HUBSOPT_SOURCE_KEY)
-            return Response({'succes': 'The batches of associations have been created.'}, status=status.HTTP_201_CREATED)
-
         except Exception as e:
             date = timezone.now().strftime("%Y-%m-%d %H:%M")
             with open(os.path.join(settings.BASE_DIR, 'logs/core.log'), 'a') as f:
-                f.write("requestAssociations {} --> Error: {}\n".format(date, str(e)))
-            return Response({'error': 'Error fetching associations.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                f.write("makeAssociations-sourceHubspotAssociations {} --> Error: {}\n".format(date, str(e)))
+
+class mirrorHubspotAssociations(requestRM):
+    """
+    API view for mirror HubSpot make manually associations.
+
+    Attributes:
+    - permission_classes: List of permission classes, allowing any user to access.
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request, *args, **kwargs):
+        try:
+            self.makeAssociations(access_token=HUBSOPT_MIRROR_KEY)
+        except Exception as e:
+            date = timezone.now().strftime("%Y-%m-%d %H:%M")
+            with open(os.path.join(settings.BASE_DIR, 'logs/core.log'), 'a') as f:
+                f.write("makeAssociations-mirrorHubspotAssociations {} --> Error: {}\n".format(date, str(e)))
