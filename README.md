@@ -1,106 +1,78 @@
-# Título del Proyecto
 
-_Acá va un párrafo que describa lo que es el proyecto_
+# Hubspot Test 
 
-## Comenzando 🚀
-
-_Estas instrucciones te permitirán obtener una copia del proyecto en funcionamiento en tu máquina local para propósitos de desarrollo y pruebas._
-
-Mira **Deployment** para conocer como desplegar el proyecto.
+Hubspot test is developed in order to validate technical knowledge in backend development and integration with the hubspot platform
 
 
-### Pre-requisitos 📋
+## Overview
 
-_Que cosas necesitas para instalar el software y como instalarlas_
+The HubspotTest provides a simple basis for the Migration and Integration of data in this case obtained from the RAMAPI APP, which allows integration with Hubspot services.
 
-```
-Da un ejemplo
-```
 
-### Instalación 🔧
 
-_Una serie de ejemplos paso a paso que te dice lo que debes ejecutar para tener un entorno de desarrollo ejecutandose_
+## Installation Locally (Only Migrations)
 
-_Dí cómo será ese paso_
+Clone hubspot repository form github and move to folder of the proyect
 
-```
-Da un ejemplo
+```bash
+  $ git clone git@github.com:savelasquezo/hubspot.git
+  $ cd hubspot
 ```
 
-_Y repite_
+Create a virtual environment, activate said environment and install the libraries and dependencies of the project.
 
-```
-hasta finalizar
-```
-
-_Finaliza con un ejemplo de cómo obtener datos del sistema o como usarlos para una pequeña demo_
-
-## Ejecutando las pruebas ⚙️
-
-_Explica como ejecutar las pruebas automatizadas para este sistema_
-
-### Analice las pruebas end-to-end 🔩
-
-_Explica que verifican estas pruebas y por qué_
-
-```
-Da un ejemplo
+```bash
+  $ python3 -m venv venv
+  $ source venv/bin/activate
+  $ pip install -r requirements.txt
 ```
 
-### Y las pruebas de estilo de codificación ⌨️
+Run the django service; remember to keep this window active
 
-_Explica que verifican estas pruebas y por qué_
-
-```
-Da un ejemplo
+```bash
+  $ python3 manage.py runserver
 ```
 
-## Despliegue 📦
 
-_Agrega notas adicionales sobre como hacer deploy_
+## Usage
 
-## Construido con 🛠️
+In this application we will use Postman to run the different endpoints and execute the migrations. The integrations will be automatic. We will list the different endpoints and their purpose
 
-_Menciona las herramientas que utilizaste para crear tu proyecto_
 
-* [Dropwizard](http://www.dropwizard.io/1.0.2/docs/) - El framework web usado
-* [Maven](https://maven.apache.org/) - Manejador de dependencias
-* [ROME](https://rometools.github.io/rome/) - Usado para generar RSS
+### Source Platform
 
-## Contribuyendo 🖇️
+Migrate character with prime id from ramapi to hubspot as contacts and if the companies already exist, create the appropriate associations
+```bash
+POST https://hubspot-d04aa4727870.herokuapp.com/app/request-contacts/
+```
 
-Por favor lee el [CONTRIBUTING.md](https://gist.github.com/villanuevand/xxxxxx) para detalles de nuestro código de conducta, y el proceso para enviarnos pull requests.
+Migrate the locations associated with the prime characters from ramapi to hubspot as companies and if the contacts already exist, create the appropriate associations
+```bash
+POST https://hubspot-d04aa4727870.herokuapp.com/app/request-companies/
+```
 
-## Wiki 📖
+Manually create associations between contacts and companies; It is only optional if you want to rectify the associations.
+```bash
+POST https://hubspot-d04aa4727870.herokuapp.com/app/request-associations/
+```
 
-Puedes encontrar mucho más de cómo utilizar este proyecto en nuestra [Wiki](https://github.com/tu/proyecto/wiki)
+### Mirror Platform
 
-## Versionado 📌
+Manually create associations between contacts and companies; Once the update process is finished, it is recommended to execute it.
+```bash
+POST https://hubspot-d04aa4727870.herokuapp.com/app/mirror-hubspot-associations/
+```
 
-Usamos [SemVer](http://semver.org/) para el versionado. Para todas las versiones disponibles, mira los [tags en este repositorio](https://github.com/tu/proyecto/tags).
 
-## Autores ✒️
+## Environment Variables
 
-_Menciona a todos aquellos que ayudaron a levantar el proyecto desde sus inicios_
-
-* **Andrés Villanueva** - *Trabajo Inicial* - [villanuevand](https://github.com/villanuevand)
-* **Fulanito Detal** - *Documentación* - [fulanitodetal](#fulanito-de-tal)
-
-También puedes mirar la lista de todos los [contribuyentes](https://github.com/your/project/contributors) quíenes han participado en este proyecto. 
-
-## Licencia 📄
-
-Este proyecto está bajo la Licencia (Tu Licencia) - mira el archivo [LICENSE.md](LICENSE.md) para detalles
-
-## Expresiones de Gratitud 🎁
-
-* Comenta a otros sobre este proyecto 📢
-* Invita una cerveza 🍺 o un café ☕ a alguien del equipo. 
-* Da las gracias públicamente 🤓.
-* Dona con cripto a esta dirección: `0xf253fc233333078436d111175e5a76a649890000`
-* etc.
+For your convenience, the .env file has been added so you do not need to define additional environment variables. Although it is recognized that it is not a good practice
 
 
 
----
-⌨️ con ❤️ por [Villanuevand](https://github.com/Villanuevand) 😊
+
+
+## Thanks for All!
+### Simon Velasquez Ortiz - Fuzer Developer!
+
+
