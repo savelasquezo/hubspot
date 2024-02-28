@@ -508,10 +508,12 @@ class sourceHubspotAssociations(requestRM):
     def post(self, request, *args, **kwargs):
         try:
             self.makeAssociations(access_token=HUBSOPT_SOURCE_KEY)
+            return Response({'succes': 'The company has been update.'}, status=status.HTTP_200_OK)
         except Exception as e:
             date = timezone.now().strftime("%Y-%m-%d %H:%M")
             with open(os.path.join(settings.BASE_DIR, 'logs/core.log'), 'a') as f:
                 f.write("makeAssociations-sourceHubspotAssociations {} --> Error: {}\n".format(date, str(e)))
+            return Response({'error': 'MirrorHubspot associations cannot be made.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class mirrorHubspotAssociations(requestRM):
     """
@@ -529,3 +531,4 @@ class mirrorHubspotAssociations(requestRM):
             date = timezone.now().strftime("%Y-%m-%d %H:%M")
             with open(os.path.join(settings.BASE_DIR, 'logs/core.log'), 'a') as f:
                 f.write("makeAssociations-mirrorHubspotAssociations {} --> Error: {}\n".format(date, str(e)))
+            return Response({'error': 'MirrorHubspot associations cannot be made.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
